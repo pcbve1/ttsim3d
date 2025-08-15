@@ -2,8 +2,8 @@
 
 ## [unreleased] -- 14 August 2025
 ### Added
-- `metadata_handler.py`: new module housing `make_metadata_file` function.
-- `make_metadata_file`: utility to generate metadata with simulated volumes
+- `metadata_handler.py`: new module housing `sim_to_metadata_yaml` function.
+- `sim_to_metadata_yaml`: utility to generate metadata .YAML files with simulated volumes
 
 ## [v0.3.0] -- 17 June 2025
 
