@@ -1,15 +1,14 @@
 """Handle PDB related operations."""
 
-import pathlib
-
-import mmdf
+import pandas as pd
 import torch
 
 
-def load_model(
-    file_path: str | pathlib.Path, center_atoms: bool = True
+def load_model_from_df(
+    structure_df: pd.DataFrame,
+    center_atoms: bool = True
 ) -> tuple[torch.Tensor, list[str], torch.Tensor]:
-    """Pdb file to atom coordinates, ids, and B factors.
+    """Pdb file or mmdf to atom coordinates, ids, and B factors.
 
     Loads a pdb from `file_path` and returns the atom coordinates (in Angstroms),
     atom ids as a list of strings, and B factors (in Angstroms^2).
@@ -26,7 +25,7 @@ def load_model(
     tuple[torch.Tensor, list[str], torch.Tensor]
         Atom coordinates, atom ids, and B factors.
     """
-    df = mmdf.read(file_path)
+    df = structure_df
     atom_zyx = torch.tensor(df[["z", "y", "x"]].to_numpy()).float()  # (n_atoms, 3)
 
     if center_atoms:

@@ -9,9 +9,11 @@ from pydantic import ConfigDict, Field, field_serializer, field_validator
 from pydantic.json_schema import SkipJsonSchema
 from teamtomo_basemodel import BaseModelTeamTomo
 from torch_fourier_filter.mtf import read_mtf
+import pandas as pd
+import mmdf
 
 from ttsim3d.mrc_handler import tensor_to_mrc
-from ttsim3d.pdb_handler import load_model, remove_hydrogens
+from ttsim3d.pdb_handler import load_model_from_df, remove_hydrogens
 from ttsim3d.simulate3d import ALLOWED_DOSE_FILTER_MODIFICATIONS, simulate3d
 
 _data_dir = pathlib.Path(__file__).parent / "data"
@@ -167,6 +169,9 @@ class Simulator(BaseModelTeamTomo):
         is 0.0.
     simulator_config : SimulatorConfig
         Simulation configuration.
+    structure_df: pd.DataFrame
+        A dataframe produced by mmdf, containing atom positions, b-factors, 
+        and identities. Non serializable attribute.
     atom_positions_zyx : torch.Tensor
         The positions (float tensor) of the atoms in the structure in units of
         Angstroms. Non-serializable attribute.
@@ -214,6 +219,8 @@ class Simulator(BaseModelTeamTomo):
     simulator_config: SimulatorConfig
 
     # Non-serializable and schema-excluded attributes
+    # TODO: somehow make structure_df non-serializable
+    structure_df: Annotated[pd.DataFrame, Field(default=None, exclude=True)]
     atom_positions_zyx: ExcludedTensor
     atom_identities: ExcludedTensor
     atom_b_factors: ExcludedTensor
@@ -226,13 +233,17 @@ class Simulator(BaseModelTeamTomo):
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
+        self.structure_df = mmdf.read(self.pdb_filepath)
+        self.load_atoms_from_structure_df()
 
-        self.load_atoms_from_pdb_model()
+    def update_atomic_coords(self) -> None:
+        self.load_atoms_from_structure_df()
+        
 
-    def load_atoms_from_pdb_model(self) -> None:
+    def load_atoms_from_structure_df(self) -> None:
         """Loads the structure atoms from held pdb file."""
-        atom_positions_zyx, atom_ids, atom_b_factors = load_model(
-            self.pdb_filepath, self.center_atoms
+        atom_positions_zyx, atom_ids, atom_b_factors = load_model_from_df(
+            self.structure_df, self.center_atoms
         )
         if self.remove_hydrogens:
             atom_positions_zyx, atom_ids, atom_b_factors = remove_hydrogens(
@@ -290,6 +301,8 @@ class Simulator(BaseModelTeamTomo):
         volume: torch.Tensor
             The simulated volume.
         """
+        
+
         assert self.atom_positions_zyx is not None, "No atom positions loaded."
         assert self.atom_identities is not None, "No atom identities loaded."
 
